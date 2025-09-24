@@ -1,0 +1,12 @@
+Entity 1    Relation	Entity 2	     Notes
+User	    OneToMany	Event	         User organizes many events
+User	    OneToMany	Post	         User authors many posts
+User	    OneToMany	Comment	         User makes many comments
+Event	    ManyToOne	User	         Many events organized by one user
+Event	    OneToMany	Comment	         Comments on events
+Post	    ManyToOne	User	         Posts authored by one user
+Post	    OneToMany	Comment	         Comments on posts
+Comment	    ManyToOne	User	         Each comment by one user
+Comment	    ManyToOne	Event or Post	 Comment linked to event or post
+
+Er diagram Link : https://app.eraser.io/workspace/AdZbiYyox6Z39b9TgU3W?origin=share

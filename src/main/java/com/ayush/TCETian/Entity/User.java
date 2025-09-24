@@ -26,7 +26,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private com.ayush.TCETian.Entity.Role role;  // ADMIN, SENIOR, STUDENT
+    private Role role;  // ADMIN, SENIOR, STUDENT
 
     @Column(nullable = false)
     private boolean verified;
