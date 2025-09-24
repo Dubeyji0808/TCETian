@@ -26,7 +26,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role;  // ADMIN, SENIOR, STUDENT
+    private Role role;  // ADMIN, STUDENT
 
     @Column(nullable = false)
     private boolean verified;
