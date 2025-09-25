@@ -1,86 +1,107 @@
 package com.ayush.TCETian.Services;
 
 import com.ayush.TCETian.Entity.User;
-import com.ayush.TCETian.payload.*;
 import com.ayush.TCETian.Repositories.UserRepository;
 import com.ayush.TCETian.Security.jwt.JwtUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ayush.TCETian.payload.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 import java.util.UUID;
 
+@RequiredArgsConstructor
 @Service
 public class AuthService {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
+    private final PasswordEncoder encoder;
+    private final JwtUtils jwtUtils;
+    private final EmailService emailService;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder encoder;
-
-    @Autowired
-    private JwtUtils jwtUtils;
-
+    /**
+     * Authenticate user and return JWT response
+     */
     public JwtResponse authenticateUser(LoginRequest loginRequest) {
+        // 1. Check if user exists
+        User user = userRepository.findByEmail(loginRequest.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + loginRequest.getEmail()));
+
+        // 2. Check if verified
+        if (!user.isVerified()) {
+            throw new DisabledException("User is not verified. Please check your email.");
+        }
+
+        // 3. Proceed with authentication
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getEmail(),
+                        loginRequest.getPassword()
+                )
+        );
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String jwt = jwtUtils.generateJwtToken(userDetails);
 
-        return new JwtResponse(jwt,
+        return new JwtResponse(
+                jwt,
                 userDetails.getId(),
                 userDetails.getName(),
                 userDetails.getEmail(),
-                userDetails.getAuthorities());
+                userDetails.getAuthorities()
+        );
     }
 
+    /**
+     * Register new user and send email verification link
+     */
     public MessageResponse registerUser(SignupRequest signUpRequest) {
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return new MessageResponse("Error: Email is already in use!");
         }
 
-        // Create new user's account
         User user = User.builder()
                 .name(signUpRequest.getName())
                 .email(signUpRequest.getEmail())
                 .password(encoder.encode(signUpRequest.getPassword()))
                 .role(signUpRequest.getRole()) // STUDENT or ADMIN
-                .verified(false) // initially false until email confirmed
-                .verificationToken(UUID.randomUUID().toString()) // generate token for email verification
+                .verified(false)
+                .verificationToken(UUID.randomUUID().toString())
                 .build();
 
         userRepository.save(user);
 
-        // TODO: Send verification email here with verificationToken
+        try {
+            // Try sending verification email
+            emailService.sendVerificationEmail(user.getEmail(), user.getVerificationToken());
+        } catch (Exception e) {
+            e.printStackTrace(); // log stacktrace
+            // rollback user to avoid unverified entries
+            userRepository.delete(user);
+            return new MessageResponse("Registration failed: Unable to send verification email. Please try again.");
+        }
 
         return new MessageResponse("User registered successfully! Please verify your email.");
     }
 
-    public Optional<User> verifyUserByToken(String token) {
-        return userRepository.findByVerificationToken(token);
-    }
+    /**
+     * Verify user by token and activate account
+     */
+    public boolean verifyUser(String token) {
+        Optional<User> userOpt = userRepository.findByVerificationToken(token);
 
-    public MessageResponse confirmUserVerification(String token) {
-        Optional<User> userOpt = verifyUserByToken(token);
-
-        if(userOpt.isEmpty()) {
-            return new MessageResponse("Invalid verification token.");
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setVerified(true);
+            user.setVerificationToken(null);
+            userRepository.save(user);
+            return true;
         }
-
-        User user = userOpt.get();
-        user.setVerified(true);
-        user.setVerificationToken(null);
-        userRepository.save(user);
-
-        return new MessageResponse("Email verified successfully!");
+        return false;
     }
 }
-

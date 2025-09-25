@@ -62,7 +62,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints (signup/signin/refresh)
-                        .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/refresh-token").permitAll()
+                        .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/refresh-token","/api/auth/verify**").permitAll()
                         // /home: both STUDENT and ADMIN
                         .requestMatchers("/home").hasAnyRole("STUDENT", "ADMIN")
                         // /educational and /event: ADMIN only

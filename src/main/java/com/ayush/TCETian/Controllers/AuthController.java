@@ -37,6 +37,16 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam("token") String token) {
+        boolean verified = authService.verifyUser(token);
+        if (verified) {
+            return ResponseEntity.ok(new MessageResponse("User verified successfully!"));
+        } else {
+            return ResponseEntity.badRequest().body(new MessageResponse("Invalid or expired verification token."));
+        }
+    }
+
     @PostMapping("/refresh-token")
     public ResponseEntity<?> refreshToken(@RequestBody TokenRefreshRequest request) {
         String requestRefreshToken = request.getRefreshToken();
