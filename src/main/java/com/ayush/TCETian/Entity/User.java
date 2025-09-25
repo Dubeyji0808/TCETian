@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Column;
+
 
 @Entity
 @Table(name = "users")
@@ -31,8 +34,14 @@ public class User {
     @Column(nullable = false)
     private boolean verified;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+
 
     @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL)
     private List<Event> organizedEvents;
@@ -48,5 +57,18 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<EventInterest> eventInterests;
+
+    @Column(name = "verification_token")
+    private String verificationToken;
+
+    // add getter and setter for verificationToken (if not using Lombok @Data)
+    public String getVerificationToken() {
+        return verificationToken;
+    }
+
+    public void setVerificationToken(String verificationToken) {
+        this.verificationToken = verificationToken;
+    }
+
 }
 
