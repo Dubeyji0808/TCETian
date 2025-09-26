@@ -1,5 +1,6 @@
 package com.ayush.TCETian.Services;
 
+import com.ayush.TCETian.Entity.RefreshToken;
 import com.ayush.TCETian.Entity.User;
 import com.ayush.TCETian.Repositories.UserRepository;
 import com.ayush.TCETian.Security.jwt.JwtUtils;
@@ -23,9 +24,10 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
+    private final RefreshTokenService refreshTokenService; // <-- added
 
     /**
-     * Authenticate user and return JWT response
+     * Authenticate user and return JWT + refresh token in response
      */
     public JwtResponse authenticateUser(LoginRequest loginRequest) {
         // 1. Check if user exists
@@ -48,8 +50,12 @@ public class AuthService {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String jwt = jwtUtils.generateJwtToken(userDetails);
 
+        // Generate refresh token (expects createRefreshToken to return a RefreshToken entity)
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+
         return new JwtResponse(
                 jwt,
+                refreshToken.getToken(),      // refresh token string
                 userDetails.getId(),
                 userDetails.getName(),
                 userDetails.getEmail(),
