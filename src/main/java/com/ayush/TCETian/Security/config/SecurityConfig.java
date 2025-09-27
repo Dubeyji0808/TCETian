@@ -6,6 +6,7 @@ import com.ayush.TCETian.Services.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -32,13 +33,11 @@ public class SecurityConfig {
         return new AuthTokenFilter();
     }
 
-    // ✅ Add PasswordEncoder
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // ✅ Configure DaoAuthenticationProvider
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -47,7 +46,6 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // ✅ Expose AuthenticationManager for AuthService
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
@@ -56,31 +54,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.disable()) // or configure cors here if needed
+                .cors(cors -> cors.disable()) // or configure cors if needed
                 .csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints (signup/signin/refresh)
-                        .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/refresh-token","/api/auth/verify**").permitAll()
-                        // /home: both STUDENT and ADMIN
+                        // Public endpoints (auth)
+                        .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/refresh-token", "/api/auth/verify**").permitAll()
+                        // /home: accessible to STUDENT and ADMIN both
                         .requestMatchers("/home").hasAnyRole("STUDENT", "ADMIN")
-                        // /educational and /event: ADMIN only
-                        .requestMatchers("/educational", "/event").hasRole("ADMIN")
-                        // /admin/**: ADMIN only
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        // /posts/create: STUDENT only
-                        .requestMatchers("/posts/create").hasRole("STUDENT")
-                        // fallback: everything else requires authentication
+                        // Event endpoints for CRUD - STUDENT and ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasAnyRole("STUDENT", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
+                        // Post endpoints for CRUD - STUDENT and ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/posts/**").hasAnyRole("STUDENT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyRole("STUDENT", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasAnyRole("STUDENT", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/posts/**").hasAnyRole("STUDENT", "ADMIN")
+                        // Any other requests require authentication
                         .anyRequest().authenticated()
-
-
                 );
 
-        // Register authentication provider
         http.authenticationProvider(authenticationProvider());
 
-        // Register JWT filter
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

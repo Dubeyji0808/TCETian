@@ -42,22 +42,6 @@ public class User {
         this.createdAt = LocalDateTime.now();
     }
 
-
-    @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL)
-    private List<Event> organizedEvents;
-
-    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL)
-    private List<Post> posts;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Comment> comments;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<PostLike> postLikes;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<EventInterest> eventInterests;
-
     @Column(name = "verification_token")
     private String verificationToken;
 
