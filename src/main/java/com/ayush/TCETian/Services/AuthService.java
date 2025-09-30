@@ -1,6 +1,7 @@
 package com.ayush.TCETian.Services;
 
 import com.ayush.TCETian.Entity.RefreshToken;
+import com.ayush.TCETian.Entity.Role;
 import com.ayush.TCETian.Entity.User;
 import com.ayush.TCETian.Repositories.UserRepository;
 import com.ayush.TCETian.Security.jwt.JwtUtils;
@@ -13,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -24,22 +26,19 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
-    private final RefreshTokenService refreshTokenService; // <-- added
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * Authenticate user and return JWT + refresh token in response
      */
     public JwtResponse authenticateUser(LoginRequest loginRequest) {
-        // 1. Check if user exists
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + loginRequest.getEmail()));
 
-        // 2. Check if verified
         if (!user.isVerified()) {
             throw new DisabledException("User is not verified. Please check your email.");
         }
 
-        // 3. Proceed with authentication
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getEmail(),
@@ -50,12 +49,11 @@ public class AuthService {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String jwt = jwtUtils.generateJwtToken(userDetails);
 
-        // Generate refresh token (expects createRefreshToken to return a RefreshToken entity)
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
 
         return new JwtResponse(
                 jwt,
-                refreshToken.getToken(),      // refresh token string
+                refreshToken.getToken(),
                 userDetails.getId(),
                 userDetails.getName(),
                 userDetails.getEmail(),
@@ -71,11 +69,16 @@ public class AuthService {
             return new MessageResponse("Error: Email is already in use!");
         }
 
+        // Use the role from signup request or default to STUDENT
+        Role role = signUpRequest.getRole() != null ? signUpRequest.getRole() : Role.STUDENT;
+        Set<Role> roles = Set.of(role); // store as a set
+
         User user = User.builder()
                 .name(signUpRequest.getName())
                 .email(signUpRequest.getEmail())
                 .password(encoder.encode(signUpRequest.getPassword()))
-                .role(signUpRequest.getRole()) // STUDENT or ADMIN
+                .role(role)    // primary role
+                .roles(roles)  // roles set
                 .verified(false)
                 .verificationToken(UUID.randomUUID().toString())
                 .build();
@@ -83,11 +86,9 @@ public class AuthService {
         userRepository.save(user);
 
         try {
-            // Try sending verification email
             emailService.sendVerificationEmail(user.getEmail(), user.getVerificationToken());
         } catch (Exception e) {
-            e.printStackTrace(); // log stacktrace
-            // rollback user to avoid unverified entries
+            e.printStackTrace();
             userRepository.delete(user);
             return new MessageResponse("Registration failed: Unable to send verification email. Please try again.");
         }

@@ -3,10 +3,7 @@ package com.ayush.TCETian.Entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.List;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Column;
-
+import java.util.*;
 
 @Entity
 @Table(name = "users")
@@ -45,14 +42,32 @@ public class User {
     @Column(name = "verification_token")
     private String verificationToken;
 
-    // add getter and setter for verificationToken (if not using Lombok @Data)
-    public String getVerificationToken() {
-        return verificationToken;
-    }
+    @OneToMany(mappedBy = "organizer")
+    private List<Event> createdEvents = new ArrayList<>();
 
-    public void setVerificationToken(String verificationToken) {
-        this.verificationToken = verificationToken;
-    }
+    @OneToMany(mappedBy = "author")
+    private List<Post> posts = new ArrayList<>();
 
+    @ManyToMany(mappedBy = "interestedUsers")
+    private Set<Event> interestedEvents = new HashSet<>();
+
+    @ManyToMany(mappedBy = "likedBy")
+    private Set<Post> likedPosts = new HashSet<>();
+
+    @OneToMany(mappedBy = "author")
+    private List<Comment> comments = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @Enumerated(EnumType.STRING)
+    private Set<Role> roles;
+
+    // Verification token getter/setter (optional if using Lombok @Data)
+    public String getVerificationToken() { return verificationToken; }
+    public void setVerificationToken(String verificationToken) { this.verificationToken = verificationToken; }
+
+    // ✅ Helper method to check if user is admin
+    public boolean isAdmin() {
+        if (role == Role.ADMIN) return true;
+        return roles != null && roles.contains(Role.ADMIN);
+    }
 }
-

@@ -54,31 +54,45 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.disable()) // or configure cors if needed
+                .cors(cors -> cors.disable())
                 .csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints (auth)
+                        // Public Auth APIs
                         .requestMatchers("/api/auth/signup", "/api/auth/signin", "/api/auth/refresh-token", "/api/auth/verify**").permitAll()
-                        // /home: accessible to STUDENT and ADMIN both
+
+                        // Home page for both
                         .requestMatchers("/home").hasAnyRole("STUDENT", "ADMIN")
-                        // Event endpoints for CRUD - STUDENT and ADMIN
-                        .requestMatchers(HttpMethod.GET, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/events").hasAnyRole("STUDENT", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
-                        // Post endpoints for CRUD - STUDENT and ADMIN
+
+                        // ================= EVENTS =================
+                        // Student can view and mark interest
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/events/*/interested").hasRole("STUDENT")
+
+                        // Admin can do full CRUD on events
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
+
+                        // ================= POSTS =================
+                        // Everyone logged in can read posts
                         .requestMatchers(HttpMethod.GET, "/api/posts/**").hasAnyRole("STUDENT", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/posts").hasAnyRole("STUDENT", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasAnyRole("STUDENT", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/posts/**").hasAnyRole("STUDENT", "ADMIN")
-                        // Any other requests require authentication
+
+                        // Students can create, update own, like, comment
+                        .requestMatchers(HttpMethod.POST, "/api/posts").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/posts/*/like").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/posts/*/comments").hasRole("STUDENT")
+
+                        // Admin can delete posts
+                        .requestMatchers(HttpMethod.DELETE, "/api/posts/**").hasRole("ADMIN")
+
+                        // ================= FALLBACK =================
                         .anyRequest().authenticated()
                 );
 
         http.authenticationProvider(authenticationProvider());
-
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
