@@ -1,80 +1,91 @@
 package com.ayush.TCETian.Services;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ayush.TCETian.Entity.User;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Getter
-@Setter
-@NoArgsConstructor
 @AllArgsConstructor
 public class UserDetailsImpl implements UserDetails {
 
     private Long id;
-
-    private String name;
-
-    private String email;
-
-    @JsonIgnore
+    private String username; // actual display username (e.g., "Batman")
+    private String email;    // login identifier
     private String password;
-
     private Collection<? extends GrantedAuthority> authorities;
 
+    // Convenience - return the display name
+    public String getDisplayName() {
+        return username;
+    }
+
     public static UserDetailsImpl build(User user) {
-        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
+        // Map Role enum set to GrantedAuthority (ROLE_STUDENT etc.)
+        Collection<GrantedAuthority> authorities = Optional.ofNullable(user.getRoles())
+                .orElse(Set.of())
+                .stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
+                .collect(Collectors.toList());
 
         return new UserDetailsImpl(
                 user.getId(),
-                user.getName(),
+                user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
-                Collections.singletonList(authority));
+                authorities
+        );
     }
 
+    // IMPORTANT: Spring uses getUsername() to identify the principal used in authentication.
+    // We want login/authentication to be done using email, so return email here.
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
+    public String getUsername() {
+        return this.email;
     }
 
     @Override
     public String getPassword() {
-        return password;
+        return this.password;
+    }
+
+    // Other UserDetails methods
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return this.authorities;
     }
 
     @Override
-    public String getUsername() {
-        return email;
+    public boolean isAccountNonExpired() {
+        return true;
     }
 
     @Override
-    public boolean isAccountNonExpired() { return true; }
-
-    @Override
-    public boolean isAccountNonLocked() { return true; }
-
-    @Override
-    public boolean isCredentialsNonExpired() { return true; }
-
-    @Override
-    public boolean isEnabled() { return true; }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof UserDetailsImpl)) return false;
-        UserDetailsImpl user = (UserDetailsImpl) o;
-        return Objects.equals(id, user.id);
+    public boolean isAccountNonLocked() {
+        return true;
     }
 
     @Override
-    public int hashCode() { return Objects.hash(id); }
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true; // you can change to user.isVerified() checks externally if needed
+    }
+
+    // For convenience in AuthService or Jwt creation
+    public Long getId() {
+        return this.id;
+    }
+
+    public String getEmail() {
+        return this.email;
+    }
 }
-

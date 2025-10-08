@@ -10,7 +10,7 @@ import lombok.Data;
 public class SignupRequest {
 
     @NotBlank
-    private String name;
+    private String username;
 
     @NotBlank
     @Email

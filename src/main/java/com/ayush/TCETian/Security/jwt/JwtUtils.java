@@ -20,15 +20,25 @@ public class JwtUtils {
     @Value("${jwt.expirationMs}")
     private int jwtExpirationMs;
 
+    /**
+     * Generates JWT token with subject = email (UserDetailsImpl.getUsername() returns email).
+     * We also allow passing UserDetailsImpl and use getEmail() to be explicit.
+     */
     public String generateJwtToken(UserDetailsImpl userPrincipal) {
+        // Use email as the subject (login identifier)
+        String subject = userPrincipal.getEmail();
+
         return Jwts.builder()
-                .setSubject(userPrincipal.getUsername())
+                .setSubject(subject)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
     }
 
+    /**
+     * Get subject (email) from token
+     */
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody().getSubject();
     }
@@ -51,4 +61,3 @@ public class JwtUtils {
         return false;
     }
 }
-

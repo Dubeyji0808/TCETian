@@ -17,6 +17,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
@@ -54,7 +59,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -67,13 +72,16 @@ public class SecurityConfig {
 
                         // ================= EVENTS =================
                         // Student can view and mark interest
-                        .requestMatchers(HttpMethod.GET, "/api/events/**").hasRole("STUDENT")
-                        .requestMatchers(HttpMethod.POST, "/api/events/*/interested").hasRole("STUDENT")
+                                // Publicly viewable events (no login required)
+                                .requestMatchers(HttpMethod.GET, "/api/events/**").hasAnyRole("STUDENT", "ADMIN")
 
-                        // Admin can do full CRUD on events
-                        .requestMatchers(HttpMethod.POST, "/api/events").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
+// Students can mark interest
+                                .requestMatchers(HttpMethod.POST, "/api/events/*/interested").hasRole("STUDENT")
+
+// Admin can manage events
+                                .requestMatchers(HttpMethod.POST, "/api/events").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.PUT, "/api/events/**").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasRole("ADMIN")
 
                         // ================= POSTS =================
                         // Everyone logged in can read posts
@@ -96,5 +104,17 @@ public class SecurityConfig {
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000")); // React dev servers
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

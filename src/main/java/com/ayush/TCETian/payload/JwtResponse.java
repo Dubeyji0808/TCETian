@@ -1,18 +1,24 @@
 package com.ayush.TCETian.payload;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.springframework.security.core.GrantedAuthority;
 
-import java.util.Collection;
+import java.util.List;
 
 @Data
-@AllArgsConstructor
 public class JwtResponse {
     private String token;
     private String refreshToken;
     private Long id;
-    private String name;
+    private String username;
     private String email;
-    private Collection<? extends GrantedAuthority> roles;
+    private List<String> roles;
+
+    public JwtResponse(String token, String refreshToken, Long id, String username, String email, List<String> roles) {
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.roles = roles;
+    }
 }
